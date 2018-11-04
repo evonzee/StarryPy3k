@@ -131,7 +131,7 @@ class InstanceGuard(StorageCommandPlugin):
             if datetime.now() > self.cooldown_worlds[world]:
                 del self.cooldown_worlds[world]
 
-        send_message(connection, "Worlds with cooldown active: {}".format(",".join(self.cooldown_worlds.keys())))
+        send_message(connection, "Worlds with cooldown active: {}".format(", ".join(self.cooldown_worlds.keys())))
 
     @Command("guard",
              perm="guard.add_guard",
@@ -169,6 +169,10 @@ class InstanceGuard(StorageCommandPlugin):
         map = location.split(":")[1]
         if map in self.storage["tracked_worlds"]:
             del self.storage["tracked_worlds"][map]
+            if map in self.active_worlds:
+                del self.active_worlds[map]
+            if map in self.cooldown_worlds:
+                del self.cooldown_worlds[map]
             send_message(connection, "Removed guard on {}".format(map))
         else:
             send_message(connection, "This world is already unguarded.")    
