@@ -12,26 +12,30 @@ import packets
 from datetime import datetime, timedelta
 
 from base_plugin import StorageCommandPlugin
-from data_parser import PlayerWarp, PlayerWarpResult
+from data_parser import PlayerWarp
 from pparser import build_packet
-from utilities import Command, send_message, link_plugin_if_available, WarpWorldType
+from utilities import Command, send_message, WarpWorldType
 
 
 class InstanceGuard(StorageCommandPlugin):
     name = "instance_guard"
     depends = ["player_manager", "command_dispatcher"]
-    default_config = {"enabled": False}
+    default_config = {
+        "timeout": 60,
+    }
 
 
     def __init__(self):
         super().__init__()
-        config = self.config.get_plugin_config(self.name)
-        self.tracked_worlds = self.init_tracking(config)
         self.active_worlds = {}
         self.cooldown_worlds = {}
 
     def activate(self):
         super().activate()
+        config = self.config.get_plugin_config(self.name)
+        self.default_timeout = config["timeout"]
+        if "tracked_worlds" not in self.storage:
+            self.storage["tracked_worlds"] = {}
 
     def on_player_warp(self, data, connection):
         """
@@ -51,15 +55,10 @@ class InstanceGuard(StorageCommandPlugin):
             destination = request["world_name"]
         
         self.check_departure(connection, destination)
-        if destination in self.tracked_worlds:
+        if destination in self.storage["tracked_worlds"]:
             return self.arrive(request, connection)
 
         return True
-
-    def init_tracking(self, config):
-        return [
-            "operation_gunnerscarrier_0"
-        ]
 
     def check_departure(self, connection, destination):
         uuid = connection.player.uuid
@@ -68,7 +67,7 @@ class InstanceGuard(StorageCommandPlugin):
 
         # Look at the active worlds we're tracking
         for world, players in dict(self.active_worlds).items():
-            # If the player was on this one
+            # If the player was on this one and isn't beaming somewhere else on the same instance
             if uuid in players and destination != world:
                 # Remove them
                 #self.logger.debug("Player {} has left {}".format(uuid, world))
@@ -83,7 +82,7 @@ class InstanceGuard(StorageCommandPlugin):
     
     def start_cooldown(self, world):
         #self.logger.debug("Starting cooldown on world {}".format(world))
-        self.cooldown_worlds[world] = datetime.now() + timedelta(minutes=1)
+        self.cooldown_worlds[world] = datetime.now() + timedelta(seconds=self.storage["tracked_worlds"][world])
         #self.logger.debug("Cooldowns are {}".format(self.cooldown_worlds))
 
     def arrive(self, request, connection):
@@ -118,3 +117,53 @@ class InstanceGuard(StorageCommandPlugin):
         yield from connection.client_raw_write(full)
         
         return False
+
+
+    @Command("guards",
+             perm="guard.list_guards",
+             doc="Lists plants with guards enabled.",
+             syntax="")
+    def _list_guards(self, data, connection):
+        send_message(connection, "Worlds with guards: {}".format(self.storage["tracked_worlds"]))
+        send_message(connection, "Worlds with cooldown active: {}".format(self.cooldown_worlds.keys()))
+
+    @Command("guard",
+             perm="guard.add_guard",
+             doc="Set the mission you're on as a guarded world.  Once empty, players won't be allowed to return until timeout.",
+             syntax="[\"](timeout)[\"]")
+    def _set_guard(self, data, connection):
+        location = str(connection.player.location)
+        
+        if not location.startswith("InstanceWorld"):
+            send_message(connection, "This location cannot be guarded.  Please try again on an instance world.")
+            return
+        
+        #self.logger.debug("Adding guard to {}".format(location))
+
+        map = location.split(":")[1]
+        timeout = self.default_timeout
+        if len(data) != 0:
+            timeout = data[0]
+        self.storage["tracked_worlds"][map] = timeout
+        send_message(connection, "Added guard on {} of {} seconds.  Please leave the map to enable tracking.".format(map, timeout))
+
+    @Command("unguard",
+             perm="guard.del_guard",
+             doc="Removes guarding from the current mission.",
+             syntax="")
+    def _del_guard(self, data, connection):
+        location = str(connection.player.location)
+
+        if not location.startswith("InstanceWorld"):
+            send_message(connection, "This location cannot be guarded.  Please try again on an instance world.")
+            return
+        
+        #self.logger.debug("Removing guard from {}".format(location))
+
+        map = location.split(":")[1]
+        if map in self.storage["tracked_worlds"]:
+            del self.storage["tracked_worlds"][map]
+            send_message(connection, "Removed guard on {}".format(map))
+        else:
+            send_message(connection, "This world is already unguarded.")    
+        self._list_guards(data, connection)
