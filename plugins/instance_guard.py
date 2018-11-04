@@ -125,12 +125,12 @@ class InstanceGuard(StorageCommandPlugin):
              syntax="")
     def _list_guards(self, data, connection):
         send_message(connection, "Worlds with guards: {}".format(self.storage["tracked_worlds"]))
-        send_message(connection, "Worlds with cooldown active: {}".format(self.cooldown_worlds.keys()))
+        send_message(connection, "Worlds with cooldown active: {}".format(",".join(self.cooldown_worlds.keys())))
 
     @Command("guard",
              perm="guard.add_guard",
              doc="Set the mission you're on as a guarded world.  Once empty, players won't be allowed to return until timeout.",
-             syntax="[\"](timeout)[\"]")
+             syntax="(timeout: default 60)")
     def _set_guard(self, data, connection):
         location = str(connection.player.location)
         
@@ -143,7 +143,7 @@ class InstanceGuard(StorageCommandPlugin):
         map = location.split(":")[1]
         timeout = self.default_timeout
         if len(data) != 0:
-            timeout = data[0]
+            timeout = int(data[0])
         self.storage["tracked_worlds"][map] = timeout
         send_message(connection, "Added guard on {} of {} seconds.  Please leave the map to enable tracking.".format(map, timeout))
 
