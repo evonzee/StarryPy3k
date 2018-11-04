@@ -125,6 +125,12 @@ class InstanceGuard(StorageCommandPlugin):
              syntax="")
     def _list_guards(self, data, connection):
         send_message(connection, "Worlds with guards: {}".format(self.storage["tracked_worlds"]))
+
+        #cleanup any dead cooldowns
+        for world in list(self.cooldown_worlds):
+            if datetime.now() > self.cooldown_worlds[world]:
+                del self.cooldown_worlds[world]
+
         send_message(connection, "Worlds with cooldown active: {}".format(",".join(self.cooldown_worlds.keys())))
 
     @Command("guard",
