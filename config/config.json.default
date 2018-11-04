@@ -43,6 +43,9 @@
             "maintenance_message": "This server is currently in maintenance mode and is not accepting new connections."
         },
         "help_plugin": {},
+        "instance_guard": {
+            "enabled": false
+        }
         "irc_bot": {
             "enabled": false,
             "announce_join_leave": true,
