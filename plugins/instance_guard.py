@@ -66,15 +66,15 @@ class InstanceGuard(StorageCommandPlugin):
         #self.logger.debug("Player {} warped to {}".format(uuid, destination))
 
         # Look at the active worlds we're tracking
-        for world, players in dict(self.active_worlds).items():
+        for world, state in dict(self.active_worlds).items():
             # If the player was on this one and isn't beaming somewhere else on the same instance
-            if uuid in players and destination != world:
+            if uuid in state["active"] and destination != world:
                 # Remove them
                 #self.logger.debug("Player {} has left {}".format(uuid, world))
-                players.remove(uuid)
+                state["active"].remove(uuid)
                 #self.logger.debug("Remaining players on {}: {}".format(world, players))
                 # and if there were no players left
-                if not players:
+                if not state["active"]:
                     # Stop tracking and start cooldown
                     del self.active_worlds[world]
                     self.start_cooldown(world)
@@ -95,21 +95,32 @@ class InstanceGuard(StorageCommandPlugin):
             # and if the time is still in the future
             if datetime.now() < self.cooldown_worlds[world]:
                 # Sorry, no go for you
-                return self.reject(request, connection, self.cooldown_worlds[world])
+                return self.rejectCooldown(connection, self.cooldown_worlds[world])
             else:
                 # Else, we've finished cooldown.
                 del self.cooldown_worlds[world]
         
-        # If we get here, then the user is allowed in.  Track them
         if world not in self.active_worlds:
-            self.active_worlds[world] = []
+            self.active_worlds[world] = {"active": [], "seen": []}
 
-        self.active_worlds[world].append(connection.player.uuid)
+        # If the user has already been on this instance since cooldown, block them
+        if connection.player.uuid in self.active_worlds[world]["seen"]:
+            return self.rejectSeen(connection, len(self.active_worlds[world]["active"]))
+
+        # If we get here, then the user is allowed in.  Track them
+        self.active_worlds[world]["seen"].append(connection.player.uuid)
+        self.active_worlds[world]["active"].append(connection.player.uuid)
         return True
 
-    def reject(self, request, connection, unlock):
+    def rejectCooldown(self, connection, unlock):
         send_message(connection, "Sorry, this world is locked for restart for {} seconds.  Try again in a little while.".format((unlock - datetime.now()).seconds))
+        return self.reject(connection)
 
+    def rejectSeen(self, connection, playerCount):
+        send_message(connection, "Sorry, you have already entered this mission since it last reset.  There are still {} players playing.  Try again in a little while.".format(playerCount))
+        return self.reject(connection)
+    
+    def reject(self, connection):
         # Send the user back to their ship
         wp = PlayerWarp.build({"warp_action": {"warp_type": 3, "alias_id": 2}})
         full = build_packet(packets.packets['player_warp'], wp)
@@ -131,6 +142,17 @@ class InstanceGuard(StorageCommandPlugin):
             if datetime.now() > self.cooldown_worlds[world]:
                 del self.cooldown_worlds[world]
 
+        activity = ", ".join(list(map(
+            lambda x: 
+                "World {}: active players {}, seen players {}\n".format(
+                    x, 
+                    len(self.active_worlds[x]["active"]), 
+                    len(self.active_worlds[x]["seen"])
+                ), self.active_worlds
+            )
+        ))
+        
+        send_message(connection, "Worlds with active players: {}".format(activity))
         send_message(connection, "Worlds with cooldown active: {}".format(", ".join(self.cooldown_worlds.keys())))
 
     @Command("guard",
