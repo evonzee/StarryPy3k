@@ -21,7 +21,7 @@ class InstanceGuard(StorageCommandPlugin):
     name = "instance_guard"
     depends = ["player_manager", "command_dispatcher"]
     default_config = {
-        "timeout": 60,
+        "timeout": 300,
     }
 
 
