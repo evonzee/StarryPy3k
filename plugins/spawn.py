@@ -24,6 +24,7 @@ class Spawn(StorageCommandPlugin):
     depends = ["command_dispatcher"]
 
     def __init__(self):
+        self.default_config = {"spawn_name": "spawn"}
         super().__init__()
 
     def activate(self):
@@ -89,7 +90,7 @@ class Spawn(StorageCommandPlugin):
         try:
             yield from self._move_ship(connection)
             send_message(connection,
-                         "Now en route to spawn. Please stand by...")
+                            "Now en route to {}. Please stand by...".format(self.plugin_config.spawn_name))
         except NotImplementedError:
             pass
 

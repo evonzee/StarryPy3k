@@ -82,7 +82,9 @@
             "report_prefix": "^magenta;(REPORT): "
         },
         "simple_command_plugin": {},
-        "spawn": {},
+        "spawn": {
+            "spawn_name": "spawn"
+        },
         "species_whitelist": {
             "enabled": false,
             "allowed_species": [
