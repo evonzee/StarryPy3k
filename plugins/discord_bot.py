@@ -327,4 +327,5 @@ class DiscordPlugin(BasePlugin, discord.Client):
         except Exception as e:
             self.logger.error("Caught an unhandled exception in Discord bot.  Will restart.")
             self.logger.exception(e)
+            yield from self.close()
             asyncio.ensure_future(self.start_bot())
