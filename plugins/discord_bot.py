@@ -281,8 +281,8 @@ class DiscordPlugin(BasePlugin, discord.Client):
         """
         yield from asyncio.sleep(1)
         if hasattr(connection, 'player'): # fix race condition where the player goes away
-        yield from self.bot_write("**{}** has {} the server.".format(
-            connection.player.alias, circumstance))
+            yield from self.bot_write("**{}** has {} the server.".format(
+                connection.player.alias, circumstance))
 
     @asyncio.coroutine
     def handle_command(self, data, user):
@@ -328,5 +328,5 @@ class DiscordPlugin(BasePlugin, discord.Client):
         except Exception as e:
             self.logger.error("Caught an unhandled exception in Discord bot.  Will restart.")
             self.logger.exception(e)
-            yield from self.close()
+            asyncio.ensure_future(self.close())
             asyncio.ensure_future(self.start_bot())
