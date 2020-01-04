@@ -280,6 +280,7 @@ class DiscordPlugin(BasePlugin, discord.Client):
         :return: Null.
         """
         yield from asyncio.sleep(1)
+        if hasattr(connection, 'player'): # fix race condition where the player goes away
         yield from self.bot_write("**{}** has {} the server.".format(
             connection.player.alias, circumstance))
 
