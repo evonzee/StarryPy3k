@@ -8,7 +8,7 @@ from utilities import Direction
 class ZstdFrameReader:
     def __init__(self, reader: asyncio.StreamReader, direction: Direction):
         self.outputbuffer = NonSeekableMemoryStream()
-        self.decompressor = zstd.ZstdDecompressor().stream_writer(self.outputbuffer, write_size=65535)
+        self.decompressor = zstd.ZstdDecompressor().stream_writer(self.outputbuffer, write_size=1024000)
         self.raw_reader = reader
         self.direction = direction
         self.zstd_enabled = False
@@ -25,7 +25,7 @@ class ZstdFrameReader:
                 # print (f"Returning {count} bytes from buffer {self.direction}")
                 return self.outputbuffer.read(count)
         
-            # print(f"Reading from network since there are only {self.outputbuffer.remaining()} bytes in buffer")
+            # print(f"Reading from network since there are only {self.outputbuffer.remaining()} bytes in buffer and we were asked for {count} bytes")
             await self.read_from_network(count)
 
     async def read_from_network(self, target_count):
@@ -67,7 +67,7 @@ class NonSeekableMemoryStream(io.RawIOBase):
             self.read_pos = 0
             self.write_pos = 0
         return bytes(data)
-    
+
     def remaining(self):
         return self.write_pos - self.read_pos
 
