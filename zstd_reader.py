@@ -9,6 +9,7 @@ class ZstdFrameReader:
     def __init__(self, reader: asyncio.StreamReader, direction: Direction):
         self.outputbuffer = NonSeekableMemoryStream()
         self.decompressor = zstd.ZstdDecompressor().stream_writer(self.outputbuffer, write_size=1024000)
+        self.decompressor.write(b'') # first write seems to have problems
         self.raw_reader = reader
         self.direction = direction
         self.zstd_enabled = False
@@ -31,7 +32,7 @@ class ZstdFrameReader:
     async def read_from_network(self, target_count):
         while self.outputbuffer.remaining() < target_count:
 
-            chunk = await self.raw_reader.read(65535)  # Read in chunks; we'll only get what's available
+            chunk = await self.raw_reader.read(32768)  # Read in chunks; we'll only get what's available
             # print(f"Read {len(chunk)} bytes from network")
             if not chunk:
                 raise asyncio.CancelledError("Connection closed")
